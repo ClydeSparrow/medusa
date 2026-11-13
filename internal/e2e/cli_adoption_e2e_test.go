@@ -29,7 +29,10 @@ func TestCLIWorkspaceIsAdoptedByTheTUI(t *testing.T) {
 	if err := os.MkdirAll(binDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	stub := "#!/bin/sh\necho \"STUB GOT: $*\"\nexec sleep 1000\n"
+	// One argument per line: a single argv line wraps in the 80-column pane the
+	// CLI creates, and attaching at the narrower tab width reflows it, so tmux
+	// pushes the top row into history and the needles below go off screen.
+	stub := "#!/bin/sh\necho \"STUB GOT:\"\nprintf '%s\\n' \"$@\"\nexec sleep 1000\n"
 	if err := os.WriteFile(filepath.Join(binDir, "claude"), []byte(stub), 0o755); err != nil {
 		t.Fatal(err)
 	}

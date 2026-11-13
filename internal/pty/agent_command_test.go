@@ -61,8 +61,9 @@ func TestBuildAgentCommandNonClaudeHasNoClaudeFlags(t *testing.T) {
 		ClaudeSessionID: "x",
 		PermissionMode:  "auto",
 		Fullscreen:      true,
+		Chrome:          true,
 	})
-	for _, unwanted := range []string{"--session-id", "--resume", "--permission-mode", "--enable-auto-mode", "CLAUDE_CONFIG_DIR", "CLAUDE_CODE_NO_FLICKER"} {
+	for _, unwanted := range []string{"--session-id", "--resume", "--permission-mode", "--enable-auto-mode", "CLAUDE_CONFIG_DIR", "CLAUDE_CODE_NO_FLICKER", "chrome"} {
 		if strings.Contains(got, unwanted) {
 			t.Errorf("non-claude must not contain %q: %s", unwanted, got)
 		}
@@ -111,5 +112,38 @@ func TestBuildAgentCommandTerminalEnv(t *testing.T) {
 	}
 	if other := buildAgentCommand(AgentType("viewer"), "run.sh", "s", "", AgentOptions{}); strings.Contains(other, "CLAUDE_CODE_TMUX_TRUECOLOR") {
 		t.Errorf("non-claude launch must not carry Claude's terminal env: %s", other)
+	}
+}
+
+// Claude always gets exactly one of --chrome / --no-chrome, on resume too. An
+// omitted flag lets the profile's claudeInChromeDefaultEnabled decide, so an
+// unchecked box could not turn Chrome off. Codex takes neither.
+func TestBuildAgentCommandChromeFlag(t *testing.T) {
+	cfg := t.TempDir()
+	writeConversation(t, cfg, "proj", "id")
+	cases := []struct {
+		name      string
+		agentType AgentType
+		opts      AgentOptions
+		expected  string
+		rejected  []string
+	}{
+		{name: "claude on", agentType: AgentClaude, opts: AgentOptions{ClaudeSessionID: "id", Chrome: true}, expected: " --chrome", rejected: []string{"--no-chrome"}},
+		{name: "claude off", agentType: AgentClaude, opts: AgentOptions{ClaudeSessionID: "id"}, expected: " --no-chrome", rejected: []string{" --chrome"}},
+		{name: "claude resume", agentType: AgentClaude, opts: AgentOptions{ClaudeSessionID: "id", Resume: true, Chrome: true}, expected: " --chrome", rejected: []string{"--no-chrome"}},
+		{name: "codex", agentType: AgentCodex, opts: AgentOptions{Chrome: true}, rejected: []string{"chrome"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := buildAgentCommand(tc.agentType, string(tc.agentType), "s", cfg, tc.opts)
+			if !strings.Contains(got, tc.expected) {
+				t.Errorf("want %q: %s", tc.expected, got)
+			}
+			for _, rejected := range tc.rejected {
+				if strings.Contains(got, rejected) {
+					t.Errorf("must not contain %q: %s", rejected, got)
+				}
+			}
+		})
 	}
 }

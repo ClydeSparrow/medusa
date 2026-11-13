@@ -210,6 +210,22 @@ was shown that it would fix), `overline` (ultraviolet cannot emit it), and
 passthrough of OSC 9/9;4/7501 and kitty graphics (medusa's own activity system
 covers notifications; images would need a graphics layer in the vterm).
 
+### Claude in Chrome
+
+The "Chrome" checkbox in the New Claude Tab dialog rides the same path as
+Fullscreen: `config.UI.LastChrome` (`last_chrome`) → `messages.LaunchAgent.Chrome`
+→ `pty.AgentOptions.Chrome` → `data.TabInfo.Chrome`, and every
+restore/reattach/restart path reads `tab.Chrome` (via `agentTabOptions`). The
+no-dialog launches and the headless CLI pick it up from
+`workspaceops.ResolveLaunch`. Unlike Fullscreen it **defaults off** when
+`last_chrome` is absent, since the integration is opt-in and adds tools to every
+session's context. **Claude tabs always get exactly one of `--chrome` /
+`--no-chrome`, never neither** (`chromeFlag` in `internal/pty/agent.go`): the
+profile's `.claude.json` carries `claudeInChromeDefaultEnabled`, which wins when
+no flag is passed, so omitting it would leave an unchecked box unable to turn
+Chrome off. Codex tabs get neither. Chrome tabs carry an `@medusa_chrome` tmux
+tag, like `@medusa_fullscreen`, so a tab adopted by tmux discovery keeps it.
+
 ### Key forwarding
 
 `common.KeyToBytes` (`internal/ui/common/keys.go`) is the single encoder from a
